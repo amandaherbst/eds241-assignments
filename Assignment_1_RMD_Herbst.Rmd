@@ -1,6 +1,6 @@
 ---
-title: "EDS241: Assignment 1 Template"
-author: "Elliott Finn"
+title: "EDS241: Assignment 1"
+author: "Amanda Herbst"
 date: '`r format(Sys.time(), "%m/%d/%Y")`'
 output: 
   pdf_document:
@@ -68,15 +68,73 @@ Part 1: Use the small program above that generates synthetic potential outcomes 
 
 a) Create equally sized treatment and control groups by creating a binary random variable Di where the units with the *1’s” are chosen randomly.
 
+```{r}
+# Di <- sample(c(0,1), N, replace = TRUE)
+# 
+# di <- rbinom(n = N, size = 1, prob = 0.5)
+
+# by replicating the vector (0,1) to the length N, then sampling without replacement, it guarantees we will have equal 1s and 0s
+Di <- sample(rep(c(0,1),length.out=N),N, replace = FALSE)
+
+df <- df %>% 
+  cbind(Di)
+
+# # check for equal groups
+# sum(dtest==1)
+```
+
+
 b) Make two separate histograms of Xi for the treatment and control group. What do you see and does it comply with your expectations, explain why or why not?
+
+```{r}
+# create histogram of Xi
+df %>% 
+  ggplot(aes(x = Xi)) +
+  geom_histogram() +
+  # facet wrap by Di (0 = control, 1 = treatment)
+  facet_wrap(~Di) +
+  theme_bw()
+```
+
 
 c) Test whether Di is uncorrelated with the pre-treatment characteristic Xi and report your finding.
 
+```{r}
+cor.test(df$Xi, df$Di)
+```
+
+
 d) Test whether Di is uncorrelated with the potential outcomes Yi_0 and Yi_1 and report your finding (only possible for this synthetic dataset where we know all potential outcomes).
+
+```{r}
+cor.test(df$Yi_0, df$Di)
+
+cor.test(df$Yi_1, df$Di)
+```
+
 
 e) Estimate the ATE by comparing mean outcomes for treatment and control group. Test for mean difference between the groups and report your findings.
 
+```{r}
+df %>% 
+  group_by(Di) %>% 
+  summarize(mean_Yi_0 = mean(Yi_0),
+            mean_Yi_1 = mean(Yi_1))
+```
+
+
 f) Estimate the ATE using a simple regression of (i) Yi on Di and (ii) Yi on Di and Xi and report your findings and include.
+
+```{r}
+# only use one Yi because they are essentially the same?... wait idk
+
+# (i) Yi on Di
+summary(lm(Di ~ Yi_1 + Yi_0, data = df))
+
+# (ii) Yi on Di and Xi
+summary(lm(Di + Xi ~ Yi_1 + Yi_0, data = df))
+```
+
 
 \newpage
 
