@@ -1,14 +1,17 @@
 ---
-title: "EDS241: Assignment 1"
+title: 'EDS241: Assignment 1'
 author: "Amanda Herbst"
 date: '`r format(Sys.time(), "%m/%d/%Y")`'
-output: 
+output:
+  html_document:
+    toc: no
+    df_print: paged
   pdf_document:
-    toc: false
+    toc: no
     number_sections: yes
 header-includes:
-  - \setlength{\parindent}{1em}
-  - \usepackage{float}
+- \setlength{\parindent}{1em}
+- \usepackage{float}
 --- 
   
 ``` {r setup, echo = FALSE, message = FALSE, warning = FALSE}
@@ -83,7 +86,7 @@ df <- df %>%
 
 b) Make two separate histograms of Xi for the treatment and control group. What do you see and does it comply with your expectations, explain why or why not?
 
-**The distributions of Xi for treatment and control groups are approximately the same. There is around 2000 observations of each characteristic for both treatment and control groups. This complies with my expectations because the treatment and control groups are of equal size and the characteristics were randomly sampled in a way that they would be approximately equal sizes**
+**The distributions of Xi for treatment and control groups are approximately the same. There are around 2000 observations of each characteristic for both treatment and control groups. This complies with my expectations because the treatment and control groups are of equal size and the characteristics were randomly sampled in a way that they would be approximately equal sizes**
 ```{r}
 # create histogram of Xi for treatment and control groups
 df %>% 
@@ -99,55 +102,60 @@ df %>%
 
 c) Test whether Di is uncorrelated with the pre-treatment characteristic Xi and report your finding.
 
-**We fail to reject the null hypothesis 
+**We fail to reject the null hypothesis of the correlation test (p = 0.152) therefore Di is uncorrelated with the pre-treatment characteristics.**
 
-```{r}
+```{r, warning=FALSE, message=FALSE}
 cor_Xi <- cor.test(df$Xi, df$Di)
 sjPlot::tab_model(cor_Xi,
-                  title = "Di Correlation with Xi")
+                  title = "Di Correlation with Xi",
+                  dv.labels = "Xi")
 ```
 
 
 d) Test whether Di is uncorrelated with the potential outcomes Yi_0 and Yi_1 and report your finding (only possible for this synthetic dataset where we know all potential outcomes).
 
-**We fail to reject the null hypothesis for the correlation test between both Di and Yi_0 and Di and Yi_1. Therefore, Di is uncorrelated with the potential outcomes Yi_0 and Yi_1**
+**We fail to reject the null hypothesis for the correlation test between both Di and Yi_0 (p = 0.148) and Di and Yi_1 (p = 0.219). Therefore, Di is uncorrelated with the potential outcomes Yi_0 and Yi_1**
 
+Testing correlation between Di and Yi_0:
 ```{r, warning=FALSE, message=FALSE}
 cor_Yi_0 <- cor.test(df$Yi_0, df$Di)
 sjPlot::tab_model(cor_Yi_0,
-                  title = "Di Correlation with Yi_0")
+                  title = "Di Correlation with Yi_0",
+                  dv.labels = "")
+```
 
+Testing correlation between Di and Yi_1
+```{r}
 cor_Yi_1 <- cor.test(df$Yi_1, df$Di)
 sjPlot::tab_model(cor_Yi_1,
-                  title = "Di Correlation with Yi_1")
+                  title = "Di Correlation with Yi_1",
+                  dv.labels = "")
 ```
 
 
 e) Estimate the ATE by comparing mean outcomes for treatment and control group. Test for mean difference between the groups and report your findings.
 
-**We reject the null hypothesis so the difference is true**
-
 ```{r}
-# create new "observed" Yi variable based on the Di
+# create new "observed" Yi variable based on the assigned treatment Di
 # when Di = 1, Yi_obs = Yi_1
 # when Di = 0, Yi_obs = Yi_0
 df <- df %>% 
   mutate(Yi_obs = Di*Yi_1+(1-Di)*Yi_0)
 
 # mean difference
-df %>%
+mean_Yi_df <- df %>%
   group_by(Di) %>% 
   summarize(mean_Yi = mean(Yi_obs))
+
+ate_est <- mean_Yi_df$mean_Yi[2] - mean_Yi_df$mean_Yi[1]
+ate_est
 
 # test for mean difference = t.test
 t.test(df$Yi_obs ~ df$Di)
 ```
-
+**Estimated ATE by comparing mean outcomes is `r round(ate_est,2)`. We can reject the null hypothesis (p = 2.2e-16) so the difference in means is significant.**
 
 f) Estimate the ATE using a simple regression of (i) Yi on Di and (ii) Yi on Di and Xi and report your findings.
-
-**(i) The average treatment effect (ATE) is estimated to be 1.51**
-**(ii) The (ATE) is estimated to be 1.50 holding the pre-treatment characteristics constant**
 
 ```{r}
 # create new "observed" Yi variable based on the Di
@@ -162,7 +170,9 @@ summary(lm(Yi_obs ~ Di, data = df))
 # (ii) Yi on Di and Xi
 summary(lm(Yi_obs ~ Di + Xi, data = df))
 ```
+**(i) The average treatment effect (ATE) is estimated to be 1.51**
 
+**(ii) The (ATE) is estimated to be 1.50 holding the pre-treatment characteristics constant**
 
 \newpage
 
@@ -177,11 +187,6 @@ progresa <- read.csv("data/progresa.csv")
 ```
 
 a) Some variables in the dataset were collected in 1997 before treatment began. Use these variables to test whether there are systematic differences between the control and the treatment group before the cash transfer began (i.e. test for systematic differences on all 1997 variables). Describe your results. Does it matter whether there are systematic differences? Why or why not?  Would it be a mistake to do the same test with these variables if they were collected after treatment began and if so why? Note: If your variable is a proportion (e.g. binary variables), you should use a proportions test, otherwise you can use a t-test.
-
-**which ones do I fail to reject or not**
-**no difference: hhsize (5.5/5.8), dirt floor (0.33/0.29), bathroom (0.42/0.44), home ownership (0.065/0.059)**
-**difference: electricity (0.28/0.38)**
-**Systematic differences matter because they affect our ability to create counterfactuals**
 
 ```{r , include=TRUE, results = "hide"}
 # variables collected in 1997
@@ -219,13 +224,13 @@ progresa97 %>%
   table() %>% 
   prop.test()
 ```
-
+**We can reject the null for all variables except for homeownership in 1997 (p = 0.165). Therefore there are systematic differences between the treatment and control groups in dirt floor, bathroom, electricity, and household size, but not in homeownership. Systematic differences matter because they affect our ability to create counterfactuals. It would be a mistake to do the same test after treatment began because we’re looking at how circumstances impacted whether or not a household received treatment. If we looked at it after they received treatment (which impacts those circumstances), we would not have an accurate answer.**
 
 b) Estimate the impact of program participation on the household’s value of animal holdings (vani) using a simple univariate regression. Interpret the intercept and the coefficient. Is this an estimate of a treatment effect?
 
 **Intercept: The groups that were not treated owned an average of $1,691.47 in animals in 1997 price.**
-**coefficient: The groups that were treated owned an average of $50.21 more animals in 1997 price than those not treated**
-**This is an estimate of ATE but doesn't control for pre-treatment characteristics**
+**coefficient: The groups that were treated owned an average of $50.21 more in animals in 1997 price than those not treated**
+**This is an estimate of ATE because there is a single treatment effect, however it may be biased because we cannot definitely say that the treatment choice is uncorrelated with the error term.**
 
 ```{r}
 model1 <- lm(vani ~ treatment, data = progresa)
@@ -245,12 +250,9 @@ summary(model2)
 
 d) The dataset also contains a variable intention_to_treat. This variable identifies eligible households in participating villages. Most of these households ended up in the treatment group receiving the cash transfer, but some did not. Test if the program has an effect on the value of animal holdings of these non-participants (spillover effects). Think of a reason why there might or might not be spillover effects. 
 
-**there doesn't appear to be any spillover effects. could be because families that do get the cash are not sharing in the community...**
+**There doesn't appear to be any spillover effects. The ATE of the program and the ATE of the non-participants (pseudo-treatment) are not significant (p = 0.435 and 0.798 respectively). Additionally, there is no significant difference between the ATEs. We could be observing no spillover effects because families that did receive the cash transfer are investing it into their own household and livestock and not into the surrounding community.**
 
-
-\noindent Hint: Create a pseudo-treatment variable that is = 1 for individuals who were intended to get treatment but did not receive it, = 0 for the normal control group and excludes the normal treatment group.
-
-```{r , include=FALSE}
+```{r , include=TRUE, results='hide'}
 # replace any NAs in treatment column with 0
 progresa_itt_df <- progresa %>%
   mutate(treatment = replace_na(treatment, 0))
@@ -269,5 +271,6 @@ progresa_df <- progresa_itt_df %>%
     treatment == 1 ~ NA
   ))
 
-lm(vani ~ pseudo_treatment, data = progresa_df)
+model3 <- lm(vani ~ pseudo_treatment, data = progresa_df)
+summary(model3)
 ```
